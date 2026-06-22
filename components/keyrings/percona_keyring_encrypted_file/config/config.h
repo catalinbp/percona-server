@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,7 @@
 #include <string>
 #include <vector>
 
-namespace percona_keyring_encrypted_file {
-namespace config {
+namespace percona_keyring_encrypted_file::config {
 
 /* Component path */
 extern char *g_component_path;
@@ -41,6 +40,8 @@ extern char *g_instance_path;
 class Config_pod {
  public:
   std::string config_file_path_;
+  std::string password_;
+  std::string password_file_;
   bool read_only_;
 };
 
@@ -69,7 +70,6 @@ bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod,
 bool create_config(
     std::unique_ptr<std::vector<std::pair<std::string, std::string>>>
         &metadata);
-}  // namespace config
-}  // namespace percona_keyring_encrypted_file
+}  // namespace percona_keyring_encrypted_file::config
 
 #endif  // !PERCONA_KEYRING_ENCRYPTED_FILE_CONFIG_INCLUDED

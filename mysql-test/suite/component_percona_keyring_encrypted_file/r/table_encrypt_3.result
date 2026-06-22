@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # Setup
-# Creating local configuration file for keyring component: component_keyring_file
+# Creating local configuration file for keyring component: component_percona_keyring_encrypted_file
 # Creating manifest file for current MySQL server instance
 # Re-starting mysql server with manifest file
 # ----------------------------------------------------------------------
@@ -1077,9 +1077,13 @@ c1	c2	right(c3, 20)
 CREATE USER encryptprivuser@localhost IDENTIFIED BY 'auth';
 GRANT ALL PRIVILEGES ON *.* to encryptprivuser@localhost;
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 CREATE USER encryptnonprivuser@localhost IDENTIFIED BY 'noauth';
 GRANT SELECT ON *.* to encryptnonprivuser@localhost;
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 SELECT c1,c2,right(c3, 20) FROM tde_db.t_encrypt LIMIT 10;
 c1	c2	right(c3, 20)
 0	aaaaa	AAAAAAAAAAAAAAAAAAAA
@@ -1415,7 +1419,7 @@ SET GLOBAL innodb_file_per_table=1;
 # ----------------------------------------------------------------------
 # Teardown
 # Removing manifest file for current MySQL server instance
-# Removing local keyring file for keyring component: component_keyring_file
-# Removing local configuration file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_percona_keyring_encrypted_file
+# Removing local configuration file for keyring component: component_percona_keyring_encrypted_file
 # Restarting server without the manifest file
 # ----------------------------------------------------------------------

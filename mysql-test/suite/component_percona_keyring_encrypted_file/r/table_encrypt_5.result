@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # Setup
-# Creating local configuration file for keyring component: component_keyring_file
+# Creating local configuration file for keyring component: component_percona_keyring_encrypted_file
 # Creating manifest file for current MySQL server instance
 # Re-starting mysql server with manifest file
 # ----------------------------------------------------------------------
@@ -143,10 +143,10 @@ SELECT status_key, status_value FROM
 performance_schema.keyring_component_status
 WHERE status_key LIKE '%name%' OR status_key LIKE '%status%';
 status_key	status_value
-Component_name	component_keyring_file
-Implementation_name	component_keyring_file
+Component_name	component_percona_keyring_encrypted_file
+Implementation_name	component_percona_keyring_encrypted_file
 Component_status	Active
-# Taking backup of local keyring file for keyring component: component_keyring_file
+# Taking backup of local keyring file for keyring component: component_percona_keyring_encrypted_file
 ALTER INSTANCE RELOAD KEYRING;
 # Select non encrypt table : Pass
 SELECT COUNT(*) FROM tde_db.t_non_encrypt;
@@ -210,7 +210,7 @@ spatial INDEX idx2 (c7)
 )  ENGINE = InnoDB;
 DROP TABLE tde_db.t_encrypt , tde_db.t_encrypt_2 ;
 DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 , tde_db.t_non_encrypt_3;
-# Restoring local keyring file from backup for keyring component: component_keyring_file
+# Restoring local keyring file from backup for keyring component: component_percona_keyring_encrypted_file
 ALTER INSTANCE RELOAD KEYRING;
 #-----------------------------------------------------------------------
 # Test 1 : Restart with same keyring option , all tables accesible
@@ -218,8 +218,8 @@ SELECT status_key, status_value FROM
 performance_schema.keyring_component_status
 WHERE status_key LIKE '%name%' OR status_key LIKE '%status%';
 status_key	status_value
-Component_name	component_keyring_file
-Implementation_name	component_keyring_file
+Component_name	component_percona_keyring_encrypted_file
+Implementation_name	component_percona_keyring_encrypted_file
 Component_status	Active
 # init tables
 call tde_db.init_setup();
@@ -457,8 +457,8 @@ SELECT status_key, status_value FROM
 performance_schema.keyring_component_status
 WHERE status_key LIKE '%name%' OR status_key LIKE '%status%';
 status_key	status_value
-Component_name	component_keyring_file
-Implementation_name	component_keyring_file
+Component_name	component_percona_keyring_encrypted_file
+Implementation_name	component_percona_keyring_encrypted_file
 Component_status	Active
 # init tables
 call tde_db.init_setup();
@@ -708,9 +708,9 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
-# Taking backup of local keyring file for keyring component: component_keyring_file
+# Taking backup of local keyring file for keyring component: component_percona_keyring_encrypted_file
 # restart without keyring 
-# Restoring local keyring file from backup for keyring component: component_keyring_file
+# Restoring local keyring file from backup for keyring component: component_percona_keyring_encrypted_file
 ALTER INSTANCE RELOAD KEYRING;
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 COUNT(*)
@@ -878,7 +878,7 @@ COUNT(*)
 64
 DROP TABLE tde_db.t_encrypt , tde_db.t_encrypt_2 , tde_db.t_encrypt_4;
 DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 , tde_db.t_non_encrypt_4;
-# Taking backup of local keyring file for keyring component: component_keyring_file
+# Taking backup of local keyring file for keyring component: component_percona_keyring_encrypted_file
 ALTER INSTANCE RELOAD KEYRING;
 CREATE TABLE tde_db.t_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c3 CHAR(255) Default 'No text',
@@ -891,7 +891,7 @@ spatial INDEX idx2 (c7)
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
-# Restoring local keyring file from backup for keyring component: component_keyring_file
+# Restoring local keyring file from backup for keyring component: component_percona_keyring_encrypted_file
 ALTER INSTANCE RELOAD KEYRING;
 #-----------------------------------------------------------------------
 # Test 4 : Restart with new keyring_data_file
@@ -902,8 +902,8 @@ SELECT status_key, status_value FROM
 performance_schema.keyring_component_status
 WHERE status_key LIKE '%name%' OR status_key LIKE '%status%';
 status_key	status_value
-Component_name	component_keyring_file
-Implementation_name	component_keyring_file
+Component_name	component_percona_keyring_encrypted_file
+Implementation_name	component_percona_keyring_encrypted_file
 Component_status	Active
 # init tables
 call tde_db.init_setup();
@@ -968,7 +968,7 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 # restart with with different keyring file
-# Taking backup of local keyring file for keyring component: component_keyring_file
+# Taking backup of local keyring file for keyring component: component_percona_keyring_encrypted_file
 # encrypt table not accessible
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
@@ -1031,13 +1031,13 @@ COUNT(*)
 DROP TABLE tde_db.t_encrypt , tde_db.t_encrypt_2 ,tde_db.t_encrypt_4;
 DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 ,tde_db.t_non_encrypt_4;
 DROP DATABASE tde_db;
-# Restoring local keyring file from backup for keyring component: component_keyring_file
+# Restoring local keyring file from backup for keyring component: component_percona_keyring_encrypted_file
 ALTER INSTANCE RELOAD KEYRING;
 SET GLOBAL innodb_file_per_table=1;
 # ----------------------------------------------------------------------
 # Teardown
 # Removing manifest file for current MySQL server instance
-# Removing local keyring file for keyring component: component_keyring_file
-# Removing local configuration file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_percona_keyring_encrypted_file
+# Removing local configuration file for keyring component: component_percona_keyring_encrypted_file
 # Restarting server without the manifest file
 # ----------------------------------------------------------------------

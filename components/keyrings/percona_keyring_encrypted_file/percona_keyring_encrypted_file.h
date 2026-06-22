@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <components/keyrings/common/component_helpers/include/service_requirements.h>
 #include <components/keyrings/common/operations/operations.h>
 #include <mysql/components/services/log_builtins.h> /* LogComponentErr */
-#include "mysqld_error.h"                           /* Errors */
+#include "mysql/components/component_implementation.h"
+#include "mysql/components/services/registry.h"
+#include "mysqld_error.h" /* Errors */
 
 #include "backend/backend.h"
 #include "config/config.h"
@@ -37,10 +39,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 extern SERVICE_TYPE(log_builtins) * log_bi;
 extern SERVICE_TYPE(log_builtins_string) * log_bs;
 
+extern REQUIRES_SERVICE_PLACEHOLDER(registry);
+extern REQUIRES_SERVICE_PLACEHOLDER(registry_registration);
+extern REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
+extern REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
+
 namespace percona_keyring_encrypted_file {
 /** Keyring operations object */
 extern keyring_common::operations::Keyring_operations<
-    backend::Keyring_file_backend> *g_keyring_operations;
+    backend::Keyring_encrypted_file_backend> *g_keyring_operations;
 
 /** Component callbacks */
 extern keyring_common::service_implementation::Component_callbacks

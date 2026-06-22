@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "percona_keyring_encrypted_file.h"
 
-namespace keyring_common {
-namespace service_implementation {
+namespace keyring_common::service_implementation {
 
 bool Component_callbacks::keyring_initialized() {
   return percona_keyring_encrypted_file::g_keyring_file_inited;
@@ -35,8 +34,7 @@ bool Component_callbacks::create_config(
   return percona_keyring_encrypted_file::config::create_config(metadata);
 }
 
-}  // namespace service_implementation
-}  // namespace keyring_common
+}  // namespace keyring_common::service_implementation
 
 namespace percona_keyring_encrypted_file {
 /** Component callbacks */

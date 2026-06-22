@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,14 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <components/keyrings/percona_keyring_encrypted_file/percona_keyring_encrypted_file.h>
+#include "option_usage.h"
 
 #include <components/keyrings/common/component_helpers/include/keyring_writer_service_definition.h>
 #include <components/keyrings/common/component_helpers/include/keyring_writer_service_impl_template.h>
 
 using percona_keyring_encrypted_file::g_component_callbacks;
 using percona_keyring_encrypted_file::g_keyring_operations;
-using percona_keyring_encrypted_file::backend::Keyring_file_backend;
+using percona_keyring_encrypted_file::backend::Keyring_encrypted_file_backend;
 
 namespace keyring_common {
 
@@ -40,14 +41,16 @@ DEFINE_BOOL_METHOD(Keyring_writer_service_impl::store,
                    (const char *data_id, const char *auth_id,
                     const unsigned char *data, size_t data_size,
                     const char *data_type)) {
-  return store_template<Keyring_file_backend>(data_id, auth_id, data, data_size,
-                                              data_type, *g_keyring_operations,
-                                              *g_component_callbacks);
+  ++opt_option_tracker_usage_file_keyring;
+  return store_template<Keyring_encrypted_file_backend>(
+      data_id, auth_id, data, data_size, data_type, *g_keyring_operations,
+      *g_component_callbacks);
 }
 
 DEFINE_BOOL_METHOD(Keyring_writer_service_impl::remove,
                    (const char *data_id, const char *auth_id)) {
-  return remove_template<Keyring_file_backend>(
+  ++opt_option_tracker_usage_file_keyring;
+  return remove_template<Keyring_encrypted_file_backend>(
       data_id, auth_id, *g_keyring_operations, *g_component_callbacks);
 }
 

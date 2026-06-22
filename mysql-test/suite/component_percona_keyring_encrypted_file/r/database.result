@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # Setup
-# Creating local configuration file for keyring component: component_keyring_file
+# Creating local configuration file for keyring component: component_percona_keyring_encrypted_file
 # Creating manifest file for current MySQL server instance
 # Re-starting mysql server with manifest file
 # ----------------------------------------------------------------------
@@ -1046,7 +1046,7 @@ SET GLOBAL debug= '-d,skip_table_encryption_admin_check_for_set';
 # ----------------------------------------------------------------------
 # Teardown
 # Removing manifest file for current MySQL server instance
-# Removing local keyring file for keyring component: component_keyring_file
-# Removing local configuration file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_percona_keyring_encrypted_file
+# Removing local configuration file for keyring component: component_percona_keyring_encrypted_file
 # Restarting server without the manifest file
 # ----------------------------------------------------------------------

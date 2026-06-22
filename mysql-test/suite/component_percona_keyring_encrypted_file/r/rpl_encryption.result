@@ -5,10 +5,10 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-# Creating local configuration file for keyring component: component_keyring_file
+# Creating local configuration file for keyring component: component_percona_keyring_encrypted_file
 # Creating manifest file for current MySQL server instance
 [connection slave]
-# Creating local configuration file for keyring component: component_keyring_file
+# Creating local configuration file for keyring component: component_percona_keyring_encrypted_file
 # Creating manifest file for current MySQL server instance
 [connection master]
 # ----------------------------------------------------------------------
@@ -72,7 +72,7 @@ include/rpl/start_replica.inc
 include/rpl/sync_to_replica.inc
 # Part 4
 [connection slave]
-# Taking backup of local keyring file for keyring component: component_keyring_file
+# Taking backup of local keyring file for keyring component: component_percona_keyring_encrypted_file
 ALTER INSTANCE RELOAD KEYRING;
 SET GLOBAL keyring_operations = OFF;
 [connection master]
@@ -104,7 +104,7 @@ Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/assert.inc [New relay log is not encrypted]
 include/rpl/start_replica.inc
-# Restoring local keyring file from backup for keyring component: component_keyring_file
+# Restoring local keyring file from backup for keyring component: component_percona_keyring_encrypted_file
 [connection master]
 third_binary_log: master-bin.000003
 include/assert.inc [the third binary log is encrypted using first master key]
@@ -131,10 +131,10 @@ SET GLOBAL keyring_operations= ON;
 # Teardown
 # Removing manifest file for current MySQL server instance
 # Removing manifest file for current MySQL server instance
-# Removing local keyring file for keyring component: component_keyring_file
-# Removing local keyring file for keyring component: component_keyring_file
-# Removing local configuration file for keyring component: component_keyring_file
-# Removing local configuration file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_percona_keyring_encrypted_file
+# Removing local keyring file for keyring component: component_percona_keyring_encrypted_file
+# Removing local configuration file for keyring component: component_percona_keyring_encrypted_file
+# Removing local configuration file for keyring component: component_percona_keyring_encrypted_file
 include/rpl/deinit.inc
 # Restarting server without the manifest file
 # ----------------------------------------------------------------------

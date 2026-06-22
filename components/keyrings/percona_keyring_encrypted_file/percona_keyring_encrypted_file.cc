@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <cstring>
 #include <memory>
 
+#include "option_usage.h"
 #include "percona_keyring_encrypted_file.h"
 
 /* Keyring_encryption_service_impl */
@@ -43,6 +44,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /* Keyring_writer_service_impl */
 #include <components/keyrings/common/component_helpers/include/keyring_writer_service_definition.h>
 
+#include <mysql/components/services/component_status_var_service.h>
 #include <mysql/components/services/psi_memory.h>
 
 /* clang-format off */
@@ -126,7 +128,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /* clang-format on */
 
 using keyring_common::operations::Keyring_operations;
-using percona_keyring_encrypted_file::backend::Keyring_file_backend;
+using percona_keyring_encrypted_file::backend::Keyring_encrypted_file_backend;
 using percona_keyring_encrypted_file::config::Config_pod;
 using percona_keyring_encrypted_file::config::g_component_path;
 using percona_keyring_encrypted_file::config::g_instance_path;
@@ -134,13 +136,16 @@ using percona_keyring_encrypted_file::config::g_instance_path;
 /** Dependencies */
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
+REQUIRES_SERVICE_PLACEHOLDER(registry_registration);
+REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 
 SERVICE_TYPE(log_builtins) * log_bi;
 SERVICE_TYPE(log_builtins_string) * log_bs;
 
 namespace percona_keyring_encrypted_file {
 /** Keyring operations object */
-Keyring_operations<Keyring_file_backend> *g_keyring_operations = nullptr;
+Keyring_operations<Keyring_encrypted_file_backend> *g_keyring_operations =
+    nullptr;
 
 /** Keyring data source */
 Config_pod *g_config_pod = nullptr;
@@ -195,18 +200,19 @@ bool init_or_reinit_keyring(std::string &err) {
     return true;
 
   /* Initialize backend handler */
-  std::unique_ptr<Keyring_file_backend> new_backend =
-      std::make_unique<Keyring_file_backend>(
-          new_config_pod.get()->config_file_path_,
-          new_config_pod.get()->read_only_);
-  if (!new_backend || !new_backend.get()->valid()) {
+  std::unique_ptr<Keyring_encrypted_file_backend> new_backend =
+      std::make_unique<Keyring_encrypted_file_backend>(
+          new_config_pod->config_file_path_, new_config_pod->read_only_,
+          new_config_pod->password_);
+  if (!new_backend || !new_backend->valid()) {
     err = "Failed to initialize keyring backend";
     return true;
   }
 
   /* Create new operations class */
-  Keyring_operations<Keyring_file_backend> *new_operations = new (std::nothrow)
-      Keyring_operations<Keyring_file_backend>(true, new_backend.release());
+  auto *new_operations =
+      new (std::nothrow) Keyring_operations<Keyring_encrypted_file_backend>(
+          true, new_backend.release());
   if (new_operations == nullptr) {
     err = "Failed to allocate memory for keyring operations";
     return true;
@@ -219,11 +225,33 @@ bool init_or_reinit_keyring(std::string &err) {
   }
 
   std::swap(g_keyring_operations, new_operations);
-  Config_pod *current = g_config_pod;
+  const Config_pod *current = g_config_pod;
   g_config_pod = new_config_pod.release();
-  if (current != nullptr) delete current;
-  if (new_operations != nullptr) delete new_operations;
+  delete current;
+  delete new_operations;
   return false;
+}
+
+SHOW_VAR static component_percona_keyring_encrypted_file_status_variables[] = {
+    {"option_tracker_usage:Percona encrypted file keyring",
+     reinterpret_cast<char *>(&opt_option_tracker_usage_file_keyring),
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_UNDEF}};
+
+static bool register_status_variables() {
+  return (
+      SERVICE_PLACEHOLDER(status_variable_registration)
+          ->register_variable(reinterpret_cast<SHOW_VAR *>(
+              &component_percona_keyring_encrypted_file_status_variables)) !=
+      0);
+}
+
+static bool unregister_status_variables() {
+  return (
+      SERVICE_PLACEHOLDER(status_variable_registration)
+          ->unregister_variable(reinterpret_cast<SHOW_VAR *>(
+              &component_percona_keyring_encrypted_file_status_variables)) !=
+      0);
 }
 
 /**
@@ -232,33 +260,45 @@ bool init_or_reinit_keyring(std::string &err) {
 static mysql_service_status_t keyring_file_init() {
   log_bi = mysql_service_log_builtins;
   log_bs = mysql_service_log_builtins_string;
-
+  if (keyring_file_component_option_usage_init()) {
+    return 1;
+  }
+  if (register_status_variables()) {
+    keyring_file_component_option_usage_deinit();
+    return 1;
+  }
   g_component_callbacks = new (std::nothrow)
       keyring_common::service_implementation::Component_callbacks();
 
-  return false;
+  return 0;
 }
 
 /**
   De-initialization function for component - Used when unloading the component
 */
 static mysql_service_status_t keyring_file_deinit() {
+  if (keyring_file_component_option_usage_deinit()) {
+    return 1;
+  }
+  if (unregister_status_variables()) {
+    return 1;
+  }
   g_keyring_file_inited = false;
   if (g_component_path) free(g_component_path);
   g_component_path = nullptr;
   if (g_instance_path) free(g_instance_path);
   g_instance_path = nullptr;
 
-  if (g_keyring_operations != nullptr) delete g_keyring_operations;
+  delete g_keyring_operations;
   g_keyring_operations = nullptr;
 
-  if (g_config_pod) delete g_config_pod;
+  delete g_config_pod;
   g_config_pod = nullptr;
 
-  if (g_component_callbacks) delete g_component_callbacks;
+  delete g_component_callbacks;
   g_component_callbacks = nullptr;
 
-  return false;
+  return 0;
 }
 
 }  // namespace percona_keyring_encrypted_file
@@ -307,8 +347,9 @@ REQUIRES_SERVICE_PLACEHOLDER(psi_memory_v2);
 
 /** List of dependencies */
 BEGIN_COMPONENT_REQUIRES(component_percona_keyring_encrypted_file)
-REQUIRES_SERVICE(registry), REQUIRES_SERVICE(log_builtins),
-    REQUIRES_SERVICE(log_builtins_string), REQUIRES_PSI_MEMORY_SERVICE,
+REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
+    REQUIRES_SERVICE(registry_registration),
+    REQUIRES_SERVICE(status_variable_registration), REQUIRES_PSI_MEMORY_SERVICE,
     END_COMPONENT_REQUIRES();
 
 /** Component description */

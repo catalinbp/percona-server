@@ -24,12 +24,15 @@
 #ifndef UTILS_INCLUDED
 #define UTILS_INCLUDED
 
+#include <cstdint>
 #include <memory> /* std::unique_ptr */
 
 namespace keyring_common::utils {
 
 bool get_random_data(const std::unique_ptr<unsigned char[]> &data,
                      size_t length);
+
+uint32_t get_random_iterations(const uint32_t mean_iterations);
 
 }  // namespace keyring_common::utils
 

@@ -24,6 +24,8 @@
 #include <openssl/err.h>   // Err_clear_error
 #include <openssl/rand.h>  // RAND_bytes
 
+#include <random>
+
 #include "utils.h"
 
 namespace keyring_common::utils {
@@ -46,6 +48,23 @@ bool get_random_data(const std::unique_ptr<unsigned char[]> &data,
     return false;
   }
   return true;
+}
+
+/**
+  Generate a random number of iterations(+/- 10%) from a random distribution
+  around the provided mean_iterations value.
+
+  @param [in] mean_iterations the value to use as pivot for the random
+  distribution.
+  @return random uint between mean_iterations - 10% and mean_iterations + 10%
+ */
+uint32_t get_random_iterations(const uint32_t mean_iterations) {
+  static std::random_device r;
+  static std::default_random_engine el(r());
+  std::uniform_int_distribution<std::size_t> dist(
+      static_cast<int>(mean_iterations * 0.9),
+      static_cast<int>(mean_iterations * 1.1));
+  return dist(el);
 }
 
 }  // namespace keyring_common::utils

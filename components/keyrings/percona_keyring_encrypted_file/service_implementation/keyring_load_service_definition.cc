@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -30,21 +30,26 @@ using percona_keyring_encrypted_file::g_keyring_file_inited;
 using percona_keyring_encrypted_file::init_or_reinit_keyring;
 using percona_keyring_encrypted_file::set_paths;
 
-namespace keyring_common {
-
-namespace service_definition {
+namespace keyring_common::service_definition {
 
 DEFINE_BOOL_METHOD(Keyring_load_service_impl::load,
                    (const char *component_path, const char *instance_path)) {
+  /* This component provides log_builtins itself, so the dynamic loader skips
+     acquiring it during init() (service is in services_provided). By the time
+     load() is called, load_do_acquire has filled mysql_service_log_builtins
+     from the registry. Re-initialize log_bi/log_bs here so LogComponentErr
+     works correctly throughout this function and its callees. */
+  log_bi = mysql_service_log_builtins;
+  log_bs = mysql_service_log_builtins_string;
   std::string err;
   try {
-    if (set_paths(component_path, instance_path) == true) {
+    if (set_paths(component_path, instance_path)) {
       LogComponentErr(ERROR_LEVEL, ER_KEYRING_COMPONENT_NOT_INITIALIZED,
                       "Failed to set path to component");
       return true;
     }
 
-    if (init_or_reinit_keyring(err) == true) {
+    if (init_or_reinit_keyring(err)) {
       LogComponentErr(ERROR_LEVEL, ER_KEYRING_COMPONENT_NOT_INITIALIZED,
                       err.c_str());
       return true;
@@ -59,5 +64,4 @@ DEFINE_BOOL_METHOD(Keyring_load_service_impl::load,
   }
 }
 
-}  // namespace service_definition
-}  // namespace keyring_common
+}  // namespace keyring_common::service_definition

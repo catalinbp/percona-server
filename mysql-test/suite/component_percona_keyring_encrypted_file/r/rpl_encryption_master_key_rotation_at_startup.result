@@ -5,10 +5,10 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-# Creating local configuration file for keyring component: component_keyring_file
+# Creating local configuration file for keyring component: component_percona_keyring_encrypted_file
 # Creating manifest file for current MySQL server instance
 [connection slave]
-# Creating local configuration file for keyring component: component_keyring_file
+# Creating local configuration file for keyring component: component_percona_keyring_encrypted_file
 # Creating manifest file for current MySQL server instance
 [connection master]
 # ----------------------------------------------------------------------
@@ -96,10 +96,10 @@ SET GLOBAL keyring_operations= ON;
 # Teardown
 # Removing manifest file for current MySQL server instance
 # Removing manifest file for current MySQL server instance
-# Removing local keyring file for keyring component: component_keyring_file
-# Removing local keyring file for keyring component: component_keyring_file
-# Removing local configuration file for keyring component: component_keyring_file
-# Removing local configuration file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_percona_keyring_encrypted_file
+# Removing local keyring file for keyring component: component_percona_keyring_encrypted_file
+# Removing local configuration file for keyring component: component_percona_keyring_encrypted_file
+# Removing local configuration file for keyring component: component_percona_keyring_encrypted_file
 include/rpl/deinit.inc
 # Restarting server without the manifest file
 # ----------------------------------------------------------------------

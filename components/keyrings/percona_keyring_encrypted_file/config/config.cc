@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <fstream>
 #include <memory>
 
 #include "my_rapidjson_size_t.h"
@@ -43,9 +44,7 @@ using percona_keyring_encrypted_file::g_config_pod;
 */
 DLL_EXPORT int keyring_file_component_exported_symbol() { return 0; }
 
-namespace percona_keyring_encrypted_file {
-
-namespace config {
+namespace percona_keyring_encrypted_file::config {
 
 char *g_component_path = nullptr;
 char *g_instance_path = nullptr;
@@ -63,7 +62,19 @@ const std::string config_file_name =
     "component_percona_keyring_encrypted_file.cnf";
 
 /* Config names */
-const std::string config_options[] = {"read_local_config", "path", "read_only"};
+const std::string config_options[] = {"read_local_config", "path", "read_only",
+                                      "password", "password_file"};
+
+template <typename T>
+bool get_mandatory_element(const std::unique_ptr<Config_reader> &config_reader,
+                           const std::string &element_name, T &element_value,
+                           std::string &err) {
+  if (config_reader->get_element(element_name, element_value)) {
+    err = "Could not find '" + element_name + "' value in configuration file";
+    return true;
+  }
+  return false;
+}
 
 bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod,
                                std::string &err) {
@@ -85,7 +96,7 @@ bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod,
     full_path.append(config_file_name);
     return false;
   };
-  if (set_config_path(path) == true) {
+  if (set_config_path(path)) {
     err = "Failed to set path to configuration file";
     return true;
   }
@@ -93,12 +104,12 @@ bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod,
   /* Read config file that's located at shared library location */
   std::unique_ptr<Config_reader> config_reader(new (std::nothrow)
                                                    Config_reader(path));
-
+  if (!config_reader->is_valid(err)) goto error;
   {
     bool read_local_config = false;
-    if (config_reader->get_element<bool>(config_options[0],
-                                         read_local_config) == false) {
-      if (read_local_config == true) {
+    if (!config_reader->get_element<bool>(config_options[0],
+                                          read_local_config)) {
+      if (read_local_config) {
         config_reader.reset();
         /*
           Read config file from current working directory
@@ -106,27 +117,71 @@ bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod,
           current working directory appropriately.
         */
         std::string instance_path(g_instance_path);
-        if (set_config_path(instance_path) == true)
-          instance_path = config_file_name;
+        if (set_config_path(instance_path)) instance_path = config_file_name;
         config_reader = std::make_unique<Config_reader>(instance_path);
+        if (!config_reader->is_valid(err)) goto error;
       }
     }
   }
-  std::string missing_option;
-  if (config_reader->get_element<std::string>(
-          config_options[1], config_pod.get()->config_file_path_)) {
-    missing_option = config_options[1];
+  if (get_mandatory_element(config_reader, config_options[1],
+                            config_pod->config_file_path_, err))
     goto error;
-  }
-  if (config_reader->get_element<bool>(config_options[2],
-                                       config_pod.get()->read_only_)) {
-    missing_option = config_options[2];
+  if (get_mandatory_element(config_reader, config_options[2],
+                            config_pod->read_only_, err))
     goto error;
+  {
+    const bool has_password = !config_reader->has_element(config_options[3]);
+    const bool has_password_file =
+        !config_reader->has_element(config_options[4]);
+
+    if (!has_password && !has_password_file) {
+      err =
+          "Either 'password' or 'password_file' must be specified in "
+          "configuration file";
+      goto error_custom;
+    }
+    if (has_password && has_password_file) {
+      err =
+          "Only one of 'password' or 'password_file' may be specified in "
+          "configuration file";
+      goto error_custom;
+    }
+
+    if (has_password) {
+      if (config_reader->get_element<std::string>(config_options[3],
+                                                  config_pod->password_)) {
+        err = "Could not find 'password' value in configuration file";
+        goto error_custom;
+      }
+    } else {
+      if (config_reader->get_element<std::string>(config_options[4],
+                                                  config_pod->password_file_)) {
+        err = "Could not find 'password_file' value in configuration file";
+        goto error_custom;
+      }
+      std::ifstream pf(config_pod->password_file_,
+                       std::ios::in | std::ios::binary | std::ios::ate);
+      if (!pf.is_open()) {
+        err = "Could not open password file: " + config_pod->password_file_;
+        goto error_custom;
+      }
+      auto sz = pf.tellg();
+      pf.seekg(0);
+      config_pod->password_.resize(static_cast<size_t>(sz));
+      pf.read(&config_pod->password_[0], sz);
+      if (pf.fail()) {
+        err =
+            "Failed to read password from file: " + config_pod->password_file_;
+        goto error_custom;
+      }
+    }
   }
   return false;
+error_custom:
+  config_pod.reset();
+  return true;
 error:
   config_pod.reset();
-  err = "Could not find '" + missing_option + "' value in configuration file";
   return true;
 }
 
@@ -135,7 +190,7 @@ bool create_config(
         &metadata) {
   metadata =
       std::make_unique<std::vector<std::pair<std::string, std::string>>>();
-  if (metadata.get() == nullptr) return true;
+  if (metadata == nullptr) return true;
   percona_keyring_encrypted_file::config::Config_pod config_pod;
   bool global_config_available = false;
   if (g_config_pod != nullptr) {
@@ -143,34 +198,48 @@ bool create_config(
     global_config_available = true;
   }
 
-  for (auto entry :
+  for (const auto *entry :
        percona_keyring_encrypted_file::config::s_component_metadata) {
-    metadata.get()->push_back(std::make_pair(entry[0], entry[1]));
+    metadata->push_back(std::make_pair(entry[0], entry[1]));
   }
 
   /* Status */
-  metadata.get()->push_back(std::make_pair(
+  metadata->push_back(std::make_pair(
       "Component_status", percona_keyring_encrypted_file::g_component_callbacks
                                   ->keyring_initialized()
                               ? "Active"
                               : "Disabled"));
 
   /* Backend file */
-  metadata.get()->push_back(std::make_pair(
-      "Data_file", ((global_config_available == true)
-                        ? ((config_pod.config_file_path_.length() == 0)
-                               ? "<NONE>"
-                               : config_pod.config_file_path_)
-                        : "<NOT APPLICABLE>")));
+  metadata->push_back(std::make_pair(
+      "Data_file",
+      (global_config_available ? ((config_pod.config_file_path_.length() == 0)
+                                      ? "<NONE>"
+                                      : config_pod.config_file_path_)
+                               : "<NOT APPLICABLE>")));
 
   /* Read only flag */
-  metadata.get()->push_back(std::make_pair(
-      "Read_only", ((global_config_available == true)
-                        ? ((config_pod.read_only_ == true) ? "Yes" : "No")
-                        : "<NOT APPLICABLE>")));
+  metadata->push_back(std::make_pair(
+      "Read_only",
+      (global_config_available ? (config_pod.read_only_ ? "Yes" : "No")
+                               : "<NOT APPLICABLE>")));
+
+  /* Password */
+  metadata->push_back(std::make_pair(
+      "Password",
+      (global_config_available
+           ? (config_pod.password_.length() == 0 ? "<NONE>" : "<SET>")
+           : "<NOT APPLICABLE>")));
+
+  /* Password_file */
+  metadata->push_back(std::make_pair(
+      "Password_file",
+      (global_config_available ? (config_pod.password_file_.length() == 0
+                                      ? "<NONE>"
+                                      : config_pod.password_file_)
+                               : "<NOT APPLICABLE>")));
 
   return false;
 }
 
-}  // namespace config
-}  // namespace percona_keyring_encrypted_file
+}  // namespace percona_keyring_encrypted_file::config

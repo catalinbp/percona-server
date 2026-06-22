@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,20 +24,22 @@
 #ifndef PERCONA_KEYRING_ENCRYPTED_FILE_BACKEND_INCLUDED
 #define PERCONA_KEYRING_ENCRYPTED_FILE_BACKEND_INCLUDED
 
+#include <cstddef>
+#include <cstdint>  //size_t
 #include <string>
 
 #include <components/keyrings/common/json_data/json_writer.h>
 #include <components/keyrings/common/memstore/iterator.h>
 #include <components/keyrings/common/operations/operations.h>
 
-namespace percona_keyring_encrypted_file {
-namespace backend {
-class Keyring_file_backend final {
+namespace percona_keyring_encrypted_file::backend {
+class Keyring_encrypted_file_backend final {
  public:
-  explicit Keyring_file_backend(const std::string keyring_file_name,
-                                bool read_only);
+  explicit Keyring_encrypted_file_backend(const std::string &keyring_file_name,
+                                          bool read_only,
+                                          const std::string &password);
 
-  ~Keyring_file_backend() = default;
+  ~Keyring_encrypted_file_backend() = default;
 
   /**
     Fetch data
@@ -103,9 +105,8 @@ class Keyring_file_backend final {
       @retval false Success
       @retval true  Failure
   */
-  bool load_cache(
-      keyring_common::operations::Keyring_operations<Keyring_file_backend>
-          &operations);
+  bool load_cache(keyring_common::operations::Keyring_operations<
+                  Keyring_encrypted_file_backend> &operations);
 
   /** Maximum data length supported */
   size_t maximum_data_length() const { return 16384; }
@@ -117,6 +118,17 @@ class Keyring_file_backend final {
   bool valid() const { return valid_; }
 
  private:
+  /*
+    On-disk format v1:
+      [version:1][salt:32][iterations:4 BE][iv:16][ciphertext]
+  */
+  static constexpr size_t k_salt_size = 32;
+  static constexpr size_t k_iv_size = 16;
+  /* 1 (version) + 32 (salt) + 4 (iterations) + 16 (iv) */
+  static constexpr size_t k_header_size =
+      1 + k_salt_size + sizeof(uint32_t) + k_iv_size;
+  static_assert(k_header_size == (1 + 32 + 4 + 16),
+                "v1: Header size must be 53 bytes");
   /**
     Write existing data to file.
     This function overwrites existing data stored in the file.
@@ -128,14 +140,42 @@ class Keyring_file_backend final {
   bool write_to_file();
 
   /** Create data file if missing */
-  void create_file_if_missing(std::string file_name);
+  void create_file_if_missing(const std::string &file_name);
 
- private:
+  /**
+    Encrypt plaintext using AES-256-CBC with a PBKDF2-derived key.
+    Output format: [version:1][salt:32][iterations:4BE][iv:16][ciphertext].
+
+    @param [in]  plaintext  Data to encrypt
+    @param [out] ciphertext Encrypted output
+
+    @returns Status of encrypt operation
+      @retval false Success
+      @retval true  Error
+  */
+  bool encrypt_data(const std::string &plaintext, std::string &ciphertext);
+
+  /**
+    Decrypt data previously produced by encrypt_data().
+    Expects v1 format: [version:1][salt:32][iterations:4BE][iv:16][ciphertext].
+
+    @param [in]  raw       Raw bytes read from file
+    @param [out] plaintext Decrypted output
+
+    @returns Status of decrypt operation
+      @retval false Success
+      @retval true  Error (wrong password, truncated input, or corrupt data)
+  */
+  bool decrypt_data(const std::string &raw, std::string &plaintext);
+
   /** Keyring file */
   std::string keyring_file_name_;
 
   /** Read only flag */
   bool read_only_;
+
+  /** Password to be used to encrypt/decrypt file */
+  std::string password_;
 
   /** In memory cache for keyring data */
   keyring_common::json_data::Json_writer json_writer_;
@@ -143,7 +183,6 @@ class Keyring_file_backend final {
   /** Validity */
   bool valid_;
 };
-}  // namespace backend
-}  // namespace percona_keyring_encrypted_file
+}  // namespace percona_keyring_encrypted_file::backend
 
 #endif  // !PERCONA_KEYRING_ENCRYPTED_FILE_BACKEND_INCLUDED

@@ -18,7 +18,7 @@
 
 # Create local keyring config
 --let KEYRING_FILE_PATH = `SELECT CONCAT( '$MYSQLTEST_VARDIR', '/keyring_file_replica')`
---let KEYRING_CONFIG_CONTENT = `SELECT CONCAT('{ \"path\": \"', '$KEYRING_FILE_PATH','\", \"read_only\": false }')`
+--let KEYRING_CONFIG_CONTENT = `SELECT CONCAT('{ \"path\": \"', '$KEYRING_FILE_PATH','\", \"read_only\": false , \"password\": \"secret_password\"}')`
 --source include/keyring_tests/helper/local_keyring_create_config.inc
 
 # Create local manifest file for current server instance

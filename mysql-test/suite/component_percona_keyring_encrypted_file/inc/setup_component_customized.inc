@@ -14,7 +14,7 @@
 
 # Create global keyring config
 --let KEYRING_FILE_PATH = `SELECT CONCAT( '$MYSQLTEST_VARDIR', '/keyring_file')`
---let KEYRING_CONFIG_CONTENT = `SELECT CONCAT('{ \"path\": \"', '$KEYRING_FILE_PATH','\", \"read_only\": false }')`
+--let KEYRING_CONFIG_CONTENT = `SELECT CONCAT('{ \"path\": \"', '$KEYRING_FILE_PATH','\", \"read_only\": false, \"password\": \"secret_password\"}')`
 --source include/keyring_tests/helper/global_keyring_create_customized_config.inc
 
 # Restart server with manifest file 

@@ -29,7 +29,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <openssl/aes.h>
 #include <openssl/bio.h>
+#include <openssl/crypto.h>
 #include <openssl/err.h>
+#include <openssl/evp.h>
 
 #include <openssl/sha.h>
 
@@ -134,13 +136,10 @@ size_t get_ciphertext_size(size_t input_size, const Keyring_aes_opmode mode) {
                         : input_size;
 }
 
-aes_return_status aes_encrypt(const unsigned char *source,
-                              unsigned int source_length, unsigned char *dest,
-                              const unsigned char *key, unsigned int key_length,
-                              Keyring_aes_opmode mode, const unsigned char *iv,
-                              bool padding, size_t *encrypted_length) {
-  if (encrypted_length == nullptr) return AES_OUTPUT_SIZE_NULL;
-
+static aes_return_status aes_evp_encrypt(
+    const unsigned char *source, unsigned int source_length,
+    unsigned char *dest, const EVP_CIPHER *cipher, const unsigned char *raw_key,
+    const unsigned char *iv, bool padding, size_t *encrypted_length) {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX stack_ctx;
   EVP_CIPHER_CTX *ctx = &stack_ctx;
@@ -159,21 +158,11 @@ aes_return_status aes_encrypt(const unsigned char *source,
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   });
 
-  const EVP_CIPHER *cipher = aes_evp_type(mode);
-  if (cipher == nullptr) return AES_INVALID_BLOCK_MODE;
-
-  /* The real key to be used for encryption */
-  std::unique_ptr<unsigned char[]> rkey;
-  size_t rkey_size;
-  if (!aes_create_key(key, key_length, rkey, &rkey_size, mode))
-    return AES_KEY_TRANSFORMATION_ERROR;
-
   if (EVP_CIPHER_iv_length(cipher) > 0 && !iv) return AES_IV_EMPTY;
 
   int u_len, f_len;
 
-  if (!EVP_EncryptInit(ctx, cipher, rkey.get(), iv))
-    return AES_ENCRYPTION_ERROR;
+  if (!EVP_EncryptInit(ctx, cipher, raw_key, iv)) return AES_ENCRYPTION_ERROR;
   if (!EVP_CIPHER_CTX_set_padding(ctx, padding)) return AES_ENCRYPTION_ERROR;
   if (!EVP_EncryptUpdate(ctx, dest, &u_len, source, source_length))
     return AES_ENCRYPTION_ERROR;
@@ -184,14 +173,10 @@ aes_return_status aes_encrypt(const unsigned char *source,
   return AES_OP_OK;
 }
 
-aes_return_status aes_decrypt(const unsigned char *source,
-                              unsigned int source_length, unsigned char *dest,
-                              const unsigned char *key, unsigned int key_length,
-                              enum Keyring_aes_opmode mode,
-                              const unsigned char *iv, bool padding,
-                              size_t *decrypted_length) {
-  if (decrypted_length == nullptr) return AES_OUTPUT_SIZE_NULL;
-
+static aes_return_status aes_evp_decrypt(
+    const unsigned char *source, unsigned int source_length,
+    unsigned char *dest, const EVP_CIPHER *cipher, const unsigned char *raw_key,
+    const unsigned char *iv, bool padding, size_t *decrypted_length) {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX stack_ctx;
   EVP_CIPHER_CTX *ctx = &stack_ctx;
@@ -210,21 +195,11 @@ aes_return_status aes_decrypt(const unsigned char *source,
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   });
 
-  const EVP_CIPHER *cipher = aes_evp_type(mode);
-  if (cipher == nullptr) return AES_INVALID_BLOCK_MODE;
-
-  /* The real key to be used for encryption */
-  std::unique_ptr<unsigned char[]> rkey;
-  size_t rkey_size;
-  if (!aes_create_key(key, key_length, rkey, &rkey_size, mode))
-    return AES_KEY_TRANSFORMATION_ERROR;
-
   if (EVP_CIPHER_iv_length(cipher) > 0 && !iv) return AES_IV_EMPTY;
 
   int u_len, f_len;
 
-  if (!EVP_DecryptInit(ctx, aes_evp_type(mode), rkey.get(), iv))
-    return AES_DECRYPTION_ERROR;
+  if (!EVP_DecryptInit(ctx, cipher, raw_key, iv)) return AES_DECRYPTION_ERROR;
   if (!EVP_CIPHER_CTX_set_padding(ctx, padding)) return AES_DECRYPTION_ERROR;
   if (!EVP_DecryptUpdate(ctx, dest, &u_len, source, source_length))
     return AES_DECRYPTION_ERROR;
@@ -234,6 +209,91 @@ aes_return_status aes_decrypt(const unsigned char *source,
   /* All is well */
   *decrypted_length = static_cast<size_t>(u_len + f_len);
   return AES_OP_OK;
+}
+
+aes_return_status aes_encrypt(const unsigned char *source,
+                              unsigned int source_length, unsigned char *dest,
+                              const unsigned char *key, unsigned int key_length,
+                              Keyring_aes_opmode mode, const unsigned char *iv,
+                              bool padding, size_t *encrypted_length) {
+  if (encrypted_length == nullptr) return AES_OUTPUT_SIZE_NULL;
+
+  const EVP_CIPHER *cipher = aes_evp_type(mode);
+  if (cipher == nullptr) return AES_INVALID_BLOCK_MODE;
+
+  /* The real key to be used for encryption */
+  std::unique_ptr<unsigned char[]> rkey;
+  size_t rkey_size;
+  if (!aes_create_key(key, key_length, rkey, &rkey_size, mode))
+    return AES_KEY_TRANSFORMATION_ERROR;
+
+  return aes_evp_encrypt(source, source_length, dest, cipher, rkey.get(), iv,
+                         padding, encrypted_length);
+}
+
+aes_return_status aes_decrypt(const unsigned char *source,
+                              unsigned int source_length, unsigned char *dest,
+                              const unsigned char *key, unsigned int key_length,
+                              enum Keyring_aes_opmode mode,
+                              const unsigned char *iv, bool padding,
+                              size_t *decrypted_length) {
+  if (decrypted_length == nullptr) return AES_OUTPUT_SIZE_NULL;
+
+  const EVP_CIPHER *cipher = aes_evp_type(mode);
+  if (cipher == nullptr) return AES_INVALID_BLOCK_MODE;
+
+  /* The real key to be used for encryption */
+  std::unique_ptr<unsigned char[]> rkey;
+  size_t rkey_size;
+  if (!aes_create_key(key, key_length, rkey, &rkey_size, mode))
+    return AES_KEY_TRANSFORMATION_ERROR;
+
+  return aes_evp_decrypt(source, source_length, dest, cipher, rkey.get(), iv,
+                         padding, decrypted_length);
+}
+
+aes_return_status aes_encrypt_pbkdf2(
+    const unsigned char *source, unsigned int source_length,
+    unsigned char *dest, const unsigned char *password, size_t password_len,
+    const unsigned char *salt, size_t salt_len, unsigned int iterations,
+    Keyring_aes_opmode mode, const unsigned char *iv, bool padding,
+    size_t *encrypted_length) {
+  if (encrypted_length == nullptr) return AES_OUTPUT_SIZE_NULL;
+  const EVP_CIPHER *cipher = aes_evp_type(mode);
+  if (cipher == nullptr) return AES_INVALID_BLOCK_MODE;
+  unsigned char raw_key[32];
+  auto zero_key =
+      create_scope_guard([&] { OPENSSL_cleanse(raw_key, sizeof(raw_key)); });
+  if (PKCS5_PBKDF2_HMAC(reinterpret_cast<const char *>(password),
+                        static_cast<int>(password_len), salt,
+                        static_cast<int>(salt_len),
+                        static_cast<int>(iterations), EVP_sha256(),
+                        static_cast<int>(sizeof(raw_key)), raw_key) != 1)
+    return AES_KEY_TRANSFORMATION_ERROR;
+  return aes_evp_encrypt(source, source_length, dest, cipher, raw_key, iv,
+                         padding, encrypted_length);
+}
+
+aes_return_status aes_decrypt_pbkdf2(
+    const unsigned char *source, unsigned int source_length,
+    unsigned char *dest, const unsigned char *password, size_t password_len,
+    const unsigned char *salt, size_t salt_len, unsigned int iterations,
+    Keyring_aes_opmode mode, const unsigned char *iv, bool padding,
+    size_t *decrypted_length) {
+  if (decrypted_length == nullptr) return AES_OUTPUT_SIZE_NULL;
+  const EVP_CIPHER *cipher = aes_evp_type(mode);
+  if (cipher == nullptr) return AES_INVALID_BLOCK_MODE;
+  unsigned char raw_key[32];
+  auto zero_key =
+      create_scope_guard([&] { OPENSSL_cleanse(raw_key, sizeof(raw_key)); });
+  if (PKCS5_PBKDF2_HMAC(reinterpret_cast<const char *>(password),
+                        static_cast<int>(password_len), salt,
+                        static_cast<int>(salt_len),
+                        static_cast<int>(iterations), EVP_sha256(),
+                        static_cast<int>(sizeof(raw_key)), raw_key) != 1)
+    return AES_KEY_TRANSFORMATION_ERROR;
+  return aes_evp_decrypt(source, source_length, dest, cipher, raw_key, iv,
+                         padding, decrypted_length);
 }
 
 }  // namespace keyring_common::aes_encryption

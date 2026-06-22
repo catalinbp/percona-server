@@ -1,4 +1,4 @@
-# Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -72,11 +72,14 @@ SET(PERCONA_KEYRING_ENCRYPTED_FILE_SOURCE
 
   # Component callbacks
   component_callbacks.cc
+
+  option_usage.cc
 )
 
 SET(PERCONA_KEYRING_ENCRYPTED_FILE_LIBRARIES
   keyring_common
   OpenSSL::SSL OpenSSL::Crypto
+  library_mysys
 )
 
 MYSQL_ADD_COMPONENT(percona_keyring_encrypted_file
@@ -85,7 +88,7 @@ MYSQL_ADD_COMPONENT(percona_keyring_encrypted_file
   MODULE_ONLY
 )
 
-MY_TARGET_LINK_OPTIONS(component_percona_keyring_encrypted_file "${LINK_FLAG_NO_UNDEFINED}")
+TARGET_LINK_OPTIONS(component_percona_keyring_encrypted_file PRIVATE "${LINK_FLAG_NO_UNDEFINED}")
 
 IF(APPLE)
   SET_TARGET_PROPERTIES(component_percona_keyring_encrypted_file PROPERTIES

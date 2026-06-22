@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,14 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <components/keyrings/percona_keyring_encrypted_file/percona_keyring_encrypted_file.h>
+#include "option_usage.h"
 
 #include <components/keyrings/common/component_helpers/include/keyring_encryption_service_definition.h>
 #include <components/keyrings/common/component_helpers/include/keyring_encryption_service_impl_template.h>
 
 using percona_keyring_encrypted_file::g_component_callbacks;
 using percona_keyring_encrypted_file::g_keyring_operations;
-using percona_keyring_encrypted_file::backend::Keyring_file_backend;
+using percona_keyring_encrypted_file::backend::Keyring_encrypted_file_backend;
 namespace keyring_common {
 
 using service_implementation::aes_decrypt_template;
@@ -50,7 +51,8 @@ DEFINE_BOOL_METHOD(Keyring_aes_service_impl::encrypt,
                     const unsigned char *data_buffer, size_t data_buffer_length,
                     unsigned char *out_buffer, size_t out_buffer_length,
                     size_t *out_length)) {
-  return aes_encrypt_template<Keyring_file_backend>(
+  ++opt_option_tracker_usage_file_keyring;
+  return aes_encrypt_template<Keyring_encrypted_file_backend>(
       data_id, auth_id, mode, block_size, iv, padding, data_buffer,
       data_buffer_length, out_buffer, out_buffer_length, out_length,
       *g_keyring_operations, *g_component_callbacks);
@@ -62,7 +64,8 @@ DEFINE_BOOL_METHOD(Keyring_aes_service_impl::decrypt,
                     const unsigned char *data_buffer, size_t data_buffer_length,
                     unsigned char *out_buffer, size_t out_buffer_length,
                     size_t *out_length)) {
-  return aes_decrypt_template<Keyring_file_backend>(
+  ++opt_option_tracker_usage_file_keyring;
+  return aes_decrypt_template<Keyring_encrypted_file_backend>(
       data_id, auth_id, mode, block_size, iv, padding, data_buffer,
       data_buffer_length, out_buffer, out_buffer_length, out_length,
       *g_keyring_operations, *g_component_callbacks);
